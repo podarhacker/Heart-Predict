@@ -8,7 +8,7 @@
     { "src": "/api/predict", "dest": "/api/predict.py" },
     { "src": "/api/train", "dest": "/api/train.py" },
     { "src": "/api/model-status", "dest": "/api/model-status.py" },
-    { "src": "/api/track", "dest": "/api/track.py" },
+    { "src": "/api/track", "dest": "/api/track.js" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
   
