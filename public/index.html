@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CardioSense — Heart Disease Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a38;
+    --accent: #ff3c5a;
+    --accent2: #ff7a5c;
+    --green: #00e5a0;
+    --blue: #4d9fff;
+    --text: #f0f0f8;
+    --muted: #6b6b88;
+    --card: #13131e;
+    --glow: 0 0 40px rgba(255,60,90,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 80% 60% at 10% 20%, rgba(255,60,90,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 90% 80%, rgba(77,159,255,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 64px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(255,60,90,0.4); }
+    50% { opacity: 0.8; transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255,60,90,0); }
+  }
+
+  .nav-tabs { display: flex; gap: 0; }
+
+  .tab-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    position: relative;
+  }
+
+  .tab-btn:hover { color: var(--text); background: var(--surface2); }
+
+  .tab-btn.active {
+    color: var(--accent);
+    background: rgba(255,60,90,0.1);
+  }
+
+  .tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 50%; transform: translateX(-50%);
+    width: 60%; height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+  }
+
+  /* STATUS BADGE */
+  #model-badge {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.72rem; color: var(--muted);
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    margin-left: 1rem;
+  }
+
+  #badge-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  #badge-dot.ready { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+  /* PAGES */
+  .page { display: none; padding: 2.5rem 2rem; max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+  .page.active { display: block; animation: fadeUp 0.4s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* PAGE HEADER */
+  .page-header { margin-bottom: 2.5rem; }
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .page-title span { color: var(--accent); }
+  .page-sub {
+    margin-top: 0.5rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+  }
+
+  /* FORM GRID */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .field {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .field:hover { border-color: rgba(255,60,90,0.3); }
+  .field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,60,90,0.1); }
+
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+
+  .field .hint {
+    font-size: 0.65rem;
+    color: #44445a;
+    margin-top: 0.2rem;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  .field select { cursor: pointer; }
+  .field select option { background: var(--surface2); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.9rem 2rem;
+    border: none; border-radius: 8px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 20px rgba(255,60,90,0.3);
+  }
+
+  .btn-primary:hover { background: #ff5570; transform: translateY(-1px); box-shadow: 0 6px 28px rgba(255,60,90,0.4); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* RESULT CARD */
+  #predict-result {
+    margin-top: 2rem;
+    display: none;
+    animation: fadeUp 0.4s ease;
+  }
+
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .result-card.positive::before { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .result-card.negative::before { background: linear-gradient(90deg, var(--green), #00b37a); }
+
+  .result-header {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .result-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+  }
+
+  .result-icon.positive { background: rgba(255,60,90,0.15); }
+  .result-icon.negative { background: rgba(0,229,160,0.1); }
+
+  .result-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .result-label.positive { color: var(--accent); }
+  .result-label.negative { color: var(--green); }
+
+  .result-conf { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+
+  .prob-bars { display: flex; flex-direction: column; gap: 0.8rem; }
+
+  .prob-row { display: flex; flex-direction: column; gap: 0.3rem; }
+
+  .prob-label-row { display: flex; justify-content: space-between; font-size: 0.75rem; }
+  .prob-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .prob-val { font-weight: 500; }
+
+  .prob-bar-bg {
+    height: 8px; border-radius: 4px;
+    background: var(--surface2);
+    overflow: hidden;
+  }
+
+  .prob-bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .prob-bar-fill.positive { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .prob-bar-fill.negative { background: linear-gradient(90deg, var(--green), #00b37a); }
+
+  /* TRAINING SECTION */
+  .train-layout { display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; align-items: start; }
+
+  @media (max-width: 768px) {
+    .train-layout { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .page-title { font-size: 1.6rem; }
+  }
+
+  .train-params {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+
+  .train-params h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 1.2rem;
+    color: var(--text);
+  }
+
+  .param-field {
+    margin-bottom: 1.2rem;
+  }
+
+  .param-field label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .param-row { display: flex; align-items: center; gap: 0.6rem; }
+
+  .param-field input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .param-val {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* RESULTS PANEL */
+  .train-results {
+    display: none;
+    animation: fadeUp 0.4s ease;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .metric-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+
+  .metric-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .metric-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+
+  /* FEATURE IMPORTANCE */
+  .feat-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .feat-section h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 1.2rem;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .feat-row {
+    display: flex; align-items: center; gap: 0.8rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .feat-name {
+    min-width: 80px;
+    font-size: 0.75rem;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .feat-bar-bg {
+    flex: 1; height: 6px; border-radius: 3px;
+    background: var(--surface2); overflow: hidden;
+  }
+
+  .feat-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--blue), #7ab8ff);
+    transition: width 1s ease;
+  }
+
+  .feat-pct { font-size: 0.7rem; color: var(--muted); min-width: 36px; text-align: right; }
+
+  /* HISTORY */
+  .history-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+
+  .history-section h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  .history-item {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+  }
+
+  .history-item:last-child { border-bottom: none; }
+
+  .history-acc {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent);
+    min-width: 55px;
+  }
+
+  .history-params { color: var(--muted); flex: 1; }
+  .history-time { color: #33334a; font-size: 0.7rem; }
+
+  /* LOADING STATE */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TRAIN LOG */
+  .log-box {
+    background: #0d0d14;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.7;
+    max-height: 160px;
+    overflow-y: auto;
+    margin-bottom: 1.5rem;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .log-line { margin-bottom: 0.1rem; }
+  .log-line.ok { color: var(--green); }
+  .log-line.err { color: var(--accent); }
+  .log-line.info { color: var(--blue); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ERROR */
+  .error-box {
+    background: rgba(255,60,90,0.08);
+    border: 1px solid rgba(255,60,90,0.3);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    font-size: 0.8rem;
+    color: var(--accent);
+    margin-top: 1rem;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    CardioSense
+  </div>
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="showPage('predict')">⬡ Predict</button>
+    <button class="tab-btn" onclick="showPage('train')">⬡ Train</button>
+  </div>
+  <div id="model-badge">
+    <div id="badge-dot"></div>
+    <span id="badge-text">checking...</span>
+  </div>
+</nav>
+
+<!-- PREDICT PAGE -->
+<div id="page-predict" class="page active">
+  <div class="page-header">
+    <div class="page-title">Heart Disease <span>Prediction</span></div>
+    <div class="page-sub">Enter patient vitals below to get an instant risk assessment</div>
+  </div>
+
+  <div class="form-grid">
+    <div class="field">
+      <label>Age</label>
+      <input type="number" id="age" placeholder="63" min="1" max="120">
+      <div class="hint">Patient age in years</div>
+    </div>
+    <div class="field">
+      <label>Sex</label>
+      <select id="sex">
+        <option value="">— Select —</option>
+        <option value="1">Male</option>
+        <option value="0">Female</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Chest Pain Type</label>
+      <select id="cp">
+        <option value="">— Select —</option>
+        <option value="0">Typical Angina (0)</option>
+        <option value="1">Atypical Angina (1)</option>
+        <option value="2">Non-Anginal Pain (2)</option>
+        <option value="3">Asymptomatic (3)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Resting Blood Pressure</label>
+      <input type="number" id="trestbps" placeholder="145" min="80" max="220">
+      <div class="hint">mm/Hg on admission</div>
+    </div>
+    <div class="field">
+      <label>Serum Cholesterol</label>
+      <input type="number" id="chol" placeholder="233" min="100" max="600">
+      <div class="hint">mg/dl</div>
+    </div>
+    <div class="field">
+      <label>Fasting Blood Sugar</label>
+      <select id="fbs">
+        <option value="">— Select —</option>
+        <option value="1">> 120 mg/dl (Yes)</option>
+        <option value="0">≤ 120 mg/dl (No)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Resting ECG</label>
+      <select id="restecg">
+        <option value="">— Select —</option>
+        <option value="0">Normal (0)</option>
+        <option value="1">ST-T Abnormality (1)</option>
+        <option value="2">LV Hypertrophy (2)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Max Heart Rate Achieved</label>
+      <input type="number" id="thalach" placeholder="150" min="60" max="220">
+      <div class="hint">thalach</div>
+    </div>
+    <div class="field">
+      <label>Exercise Induced Angina</label>
+      <select id="exang">
+        <option value="">— Select —</option>
+        <option value="1">Yes</option>
+        <option value="0">No</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>ST Depression (Oldpeak)</label>
+      <input type="number" id="oldpeak" placeholder="2.3" min="0" max="10" step="0.1">
+      <div class="hint">Induced by exercise</div>
+    </div>
+    <div class="field">
+      <label>Slope of Peak ST</label>
+      <select id="slope">
+        <option value="">— Select —</option>
+        <option value="0">Upsloping (0)</option>
+        <option value="1">Flat (1)</option>
+        <option value="2">Downsloping (2)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Major Vessels Colored</label>
+      <select id="ca">
+        <option value="">— Select —</option>
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+      <div class="hint">By fluoroscopy (0–3)</div>
+    </div>
+    <div class="field">
+      <label>Thalassemia</label>
+      <select id="thal">
+        <option value="">— Select —</option>
+        <option value="1">Normal (1)</option>
+        <option value="2">Fixed Defect (2)</option>
+        <option value="3">Reversable Defect (3)</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="predict-btn" onclick="runPredict()">
+    <span id="predict-btn-text">Run Prediction</span>
+  </button>
+  <button class="btn btn-secondary" onclick="fillSample()" style="margin-left:0.8rem;">Load Sample</button>
+
+  <div class="error-box" id="predict-error"></div>
+
+  <div id="predict-result">
+    <div class="result-card" id="result-card">
+      <div class="result-header">
+        <div class="result-icon" id="result-icon"></div>
+        <div>
+          <div class="result-label" id="result-label"></div>
+          <div class="result-conf" id="result-conf"></div>
+        </div>
+      </div>
+      <div class="prob-bars">
+        <div class="prob-row">
+          <div class="prob-label-row">
+            <span class="prob-label">Heart Disease Risk</span>
+            <span class="prob-val" id="prob-pos-val"></span>
+          </div>
+          <div class="prob-bar-bg"><div class="prob-bar-fill positive" id="prob-pos-bar" style="width:0%"></div></div>
+        </div>
+        <div class="prob-row">
+          <div class="prob-label-row">
+            <span class="prob-label">No Disease</span>
+            <span class="prob-val" id="prob-neg-val"></span>
+          </div>
+          <div class="prob-bar-bg"><div class="prob-bar-fill negative" id="prob-neg-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRAIN PAGE -->
+<div id="page-train" class="page">
+  <div class="page-header">
+    <div class="page-title">Model <span>Training</span></div>
+    <div class="page-sub">Retrain the RandomForest classifier with custom hyperparameters</div>
+  </div>
+
+  <div class="train-layout">
+    <div>
+      <div class="train-params">
+        <h3>Hyperparameters</h3>
+
+        <div class="param-field">
+          <label>N Estimators (Trees)</label>
+          <div class="param-row">
+            <input type="range" id="n_estimators" min="10" max="500" step="10" value="100" oninput="document.getElementById('ne-val').textContent=this.value">
+            <span class="param-val" id="ne-val">100</span>
+          </div>
+        </div>
+
+        <div class="param-field">
+          <label>Test Split Size</label>
+          <div class="param-row">
+            <input type="range" id="test_size" min="10" max="40" step="5" value="20" oninput="document.getElementById('ts-val').textContent=this.value+'%'">
+            <span class="param-val" id="ts-val">20%</span>
+          </div>
+        </div>
+
+        <div class="param-field">
+          <label>Random State (Seed)</label>
+          <div class="param-row">
+            <input type="range" id="random_state" min="0" max="100" step="1" value="42" oninput="document.getElementById('rs-val').textContent=this.value">
+            <span class="param-val" id="rs-val">42</span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="train-btn" onclick="runTrain()" style="width:100%;justify-content:center;margin-top:0.5rem;">
+          <span id="train-btn-text">Train Model</span>
+        </button>
+        <div class="error-box" id="train-error"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="log-box" id="train-log">
+        <div class="log-line info">// Training log will appear here...</div>
+      </div>
+
+      <div class="train-results" id="train-results">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-val" id="m-accuracy">—</div>
+            <div class="metric-label">Accuracy</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="m-train">—</div>
+            <div class="metric-label">Train Samples</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="m-test">—</div>
+            <div class="metric-label">Test Samples</div>
+          </div>
+        </div>
+
+        <div class="feat-section">
+          <h3>Feature Importance</h3>
+          <div id="feat-bars"></div>
+        </div>
+
+        <div class="history-section">
+          <h3>Training History</h3>
+          <div id="history-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';  // empty = same origin; change to https://your-backend.vercel.app for deployed
+
+let trainHistory = [];
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+async function checkModelStatus() {
+  try {
+    const res = await fetch(API + '/api/model-status');
+    const data = await res.json();
+    const dot = document.getElementById('badge-dot');
+    const txt = document.getElementById('badge-text');
+    if (data.trained) {
+      dot.classList.add('ready');
+      txt.textContent = 'model ready';
+    } else {
+      dot.classList.remove('ready');
+      txt.textContent = 'not trained';
+    }
+  } catch {
+    document.getElementById('badge-text').textContent = 'offline';
+  }
+}
+
+function fillSample() {
+  const sample = { age:63, sex:1, cp:3, trestbps:145, chol:233, fbs:1, restecg:0, thalach:150, exang:0, oldpeak:2.3, slope:0, ca:0, thal:1 };
+  Object.entries(sample).forEach(([k, v]) => {
+    const el = document.getElementById(k);
+    if (el) el.value = v;
+  });
+}
+
+async function runPredict() {
+  const fields = ['age','sex','cp','trestbps','chol','fbs','restecg','thalach','exang','oldpeak','slope','ca','thal'];
+  const payload = {};
+  for (const f of fields) {
+    const val = document.getElementById(f).value;
+    if (val === '') { showError('predict-error', `Please fill in: ${f}`); return; }
+    payload[f] = val;
+  }
+  hideError('predict-error');
+
+  const btn = document.getElementById('predict-btn');
+  const btnText = document.getElementById('predict-btn-text');
+  btn.disabled = true;
+  btnText.innerHTML = '<div class="spinner"></div> Analyzing...';
+
+  try {
+    const res = await fetch(API + '/api/predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.error) { showError('predict-error', data.error); return; }
+    displayResult(data);
+  } catch (e) {
+    showError('predict-error', 'Failed to reach API. Is the server running?');
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = 'Run Prediction';
+  }
+}
+
+function displayResult(data) {
+  const isPositive = data.prediction === 1;
+  const card = document.getElementById('result-card');
+  const icon = document.getElementById('result-icon');
+  card.className = 'result-card ' + (isPositive ? 'positive' : 'negative');
+  icon.className = 'result-icon ' + (isPositive ? 'positive' : 'negative');
+  icon.textContent = isPositive ? '⚠' : '✓';
+  document.getElementById('result-label').className = 'result-label ' + (isPositive ? 'positive' : 'negative');
+  document.getElementById('result-label').textContent = data.label;
+  document.getElementById('result-conf').textContent = `Confidence: ${data.confidence}%`;
+  document.getElementById('prob-pos-val').textContent = data.probability_positive + '%';
+  document.getElementById('prob-neg-val').textContent = data.probability_negative + '%';
+  document.getElementById('predict-result').style.display = 'block';
+  setTimeout(() => {
+    document.getElementById('prob-pos-bar').style.width = data.probability_positive + '%';
+    document.getElementById('prob-neg-bar').style.width = data.probability_negative + '%';
+  }, 100);
+}
+
+function addLog(msg, type='') {
+  const box = document.getElementById('train-log');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function runTrain() {
+  const n_estimators = parseInt(document.getElementById('n_estimators').value);
+  const test_size = parseInt(document.getElementById('test_size').value) / 100;
+  const random_state = parseInt(document.getElementById('random_state').value);
+
+  hideError('train-error');
+  document.getElementById('train-log').innerHTML = '';
+  addLog('> Initializing training pipeline...', 'info');
+  addLog(`> Parameters: trees=${n_estimators}, test_split=${(test_size*100).toFixed(0)}%, seed=${random_state}`);
+
+  const btn = document.getElementById('train-btn');
+  const btnText = document.getElementById('train-btn-text');
+  btn.disabled = true;
+  btnText.innerHTML = '<div class="spinner"></div> Training...';
+
+  const startTime = Date.now();
+
+  try {
+    addLog('> Loading dataset (heart.csv)...');
+    const res = await fetch(API + '/api/train', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ n_estimators, test_size, random_state })
+    });
+    const data = await res.json();
+    if (data.error) { addLog('ERROR: ' + data.error, 'err'); showError('train-error', data.error); return; }
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+    addLog(`> Splitting: ${data.samples_trained} train / ${data.samples_tested} test samples`);
+    addLog('> Fitting RandomForestClassifier...');
+    addLog(`> Training complete in ${elapsed}s`, 'ok');
+    addLog(`> Accuracy: ${data.accuracy}%`, 'ok');
+    addLog('> Model saved to heart_model.pkl', 'ok');
+
+    displayTrainResults(data);
+    checkModelStatus();
+
+    trainHistory.unshift({ accuracy: data.accuracy, n_estimators, test_size: test_size*100, random_state, time: new Date().toLocaleTimeString() });
+    renderHistory();
+
+  } catch (e) {
+    addLog('ERROR: Could not connect to API', 'err');
+    showError('train-error', 'Failed to reach API. Is the server running?');
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = 'Train Model';
+  }
+}
+
+function displayTrainResults(data) {
+  document.getElementById('m-accuracy').textContent = data.accuracy + '%';
+  document.getElementById('m-train').textContent = data.samples_trained;
+  document.getElementById('m-test').textContent = data.samples_tested;
+
+  const container = document.getElementById('feat-bars');
+  container.innerHTML = '';
+  const entries = Object.entries(data.feature_importance);
+  const max = entries[0][1];
+  entries.forEach(([name, val]) => {
+    const pct = (val / max * 100).toFixed(1);
+    container.innerHTML += `
+      <div class="feat-row">
+        <div class="feat-name">${name}</div>
+        <div class="feat-bar-bg"><div class="feat-bar-fill" style="width:0%" data-w="${pct}"></div></div>
+        <div class="feat-pct">${(val*100).toFixed(1)}%</div>
+      </div>`;
+  });
+
+  document.getElementById('train-results').style.display = 'block';
+  setTimeout(() => {
+    document.querySelectorAll('.feat-bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 100);
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = trainHistory.slice(0, 8).map(h => `
+    <div class="history-item">
+      <div class="history-acc">${h.accuracy}%</div>
+      <div class="history-params">trees=${h.n_estimators} · split=${h.test_size}% · seed=${h.random_state}</div>
+      <div class="history-time">${h.time}</div>
+    </div>`).join('');
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+function hideError(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+checkModelStatus();
+</script>
+</body>
+</html>
