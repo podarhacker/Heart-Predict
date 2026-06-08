@@ -1,15 +1,15 @@
 {
   "version": 2,
   "builds": [
+    { "src": "api/track.js", "use": "@vercel/node" },
     { "src": "api/*.py", "use": "@vercel/python" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
-    "routes": [
+  "routes": [
+    { "src": "/api/track", "dest": "/api/track.js" },
     { "src": "/api/predict", "dest": "/api/predict.py" },
     { "src": "/api/train", "dest": "/api/train.py" },
     { "src": "/api/model-status", "dest": "/api/model-status.py" },
-    { "src": "/api/track", "dest": "/api/track.js" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
-  
 }
